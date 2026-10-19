@@ -2,9 +2,9 @@
 
 ## Federal Contract Spending Analysis
 
-**Status: setup — repository scaffold and collector in place; first real data pull pending.**
+**Status: setup — collector and analyst-assistant foundation in place; first real data pull pending.**
 
-GovSpend AI is a planned data-mining project for CS 513. The goal is to analyze federal contract awards, discover spending patterns, and rank unusual awards for human review.
+GovSpend AI is a data-mining project for CS 513. It analyzes federal contract awards, ranks unusual awards for human review, and includes an analyst assistant that explains each flagged award using retrieved comparable awards and federal acquisition rules, with every claim cited.
 
 ## Research question
 
@@ -29,9 +29,10 @@ An award-level amount must be interpreted according to the source definition. A 
 3. Features describing award size and peer-group differences.
 4. A simple statistical baseline and Isolation Forest.
 5. Review of ranked examples and sensitivity to modeling choices.
-6. A reproducible report describing findings and limitations.
+6. An analyst assistant (retrieval-augmented generation) that explains flagged awards with citations to comparable awards and FAR passages.
+7. A reproducible report describing findings and limitations.
 
-The stack is Python, Pandas, NumPy, scikit-learn, Matplotlib, and Jupyter.
+The stack is Python, Pandas, NumPy, scikit-learn, Matplotlib, and Jupyter; the assistant adds `sentence-transformers` and an LLM provider (Anthropic, OpenAI, or local Ollama).
 
 ## Getting started
 
@@ -49,14 +50,32 @@ jupyter notebook notebooks/00_first_look.ipynb
 
 Raw snapshots and processed tables stay local (gitignored). Each snapshot carries a `collection_notes.json` with the exact request, timestamps, and stop reason. Column definitions are in [docs/data_dictionary.md](docs/data_dictionary.md).
 
+### Analyst assistant
+
+```bash
+pip install -r requirements-rag.txt
+python -m govspend.rag.build                                  # fetch FAR parts + data dictionary, build both indexes
+python -m govspend.rag.explain <generated_internal_id> --dry-run   # inspect the grounded prompt
+export ANTHROPIC_API_KEY=...                                   # or --provider ollama --model <name>
+python -m govspend.rag.explain <generated_internal_id>        # -> reports/explanations/<id>.md
+python -m govspend.rag.evaluate data/eval/retrieval_queries.jsonl --k 5
+```
+
+Explanations cite comparable awards as `[A:<id>]` and reference passages as `[R:<id>]`. Guards reject citations that weren't retrieved and flag accusatory wording. Design: [docs/rag.md](docs/rag.md).
+
 | Path | Purpose |
 | --- | --- |
 | `src/govspend/collect.py` | Pages through `spending_by_award` and saves untouched responses |
 | `src/govspend/flatten.py` | Flattens a snapshot, parses amounts/dates, dedups on `generated_internal_id` |
+| `src/govspend/rag/` | Analyst assistant: corpus, embeddings, index, retrieval, prompt, guards, evaluation |
 | `notebooks/` | Exploration (`00_first_look.ipynb` first) |
-| `tests/` | Network-free checks for collection and flattening |
-| `docs/` | Data dictionary and study notes |
-| `reports/` | Figures and the final report |
+| `tests/` | Network-free checks for collection, flattening, and the assistant |
+| `docs/` | Data dictionary, assistant design, study notes |
+| `reports/` | Figures, explanations, and the final report |
+
+## Contributors
+
+Work is split into Data, Modeling, and Assistant tracks — see [PLAN.md](PLAN.md#team-tracks). Branch, review, and shared-snapshot rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development roadmap
 
@@ -67,13 +86,14 @@ Raw snapshots and processed tables stay local (gitignored). Each snapshot carrie
 | Explore | Data-quality summary and 4–5 meaningful charts |
 | Model | Statistical baseline and Isolation Forest ranking |
 | Evaluate | Reviewed examples and ranking stability comparison |
+| Explain | Cited explanations for top-ranked awards; retrieval recall@k and explanation scoring |
 | Present | Reproducible workflow, final report, and project demo |
 
-See [PLAN.md](PLAN.md) for the detailed plan, weekly milestones, and completion checks. All implementation milestones are currently upcoming.
+See [PLAN.md](PLAN.md) for the detailed plan, weekly milestones, and completion checks.
 
 ## Planned extensions
 
-After the CS 513 study: SQL storage, a prediction/scoring API, an analyst dashboard, and automated data refreshes. Transaction-based features such as modification counts require a separate data collection step.
+After the CS 513 study: SQL storage (with `pgvector` for the assistant's index), a prediction/scoring API, an analyst dashboard, and automated data refreshes. Transaction-based features such as modification counts require a separate data collection step.
 
 ## Results
 
