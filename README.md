@@ -2,7 +2,7 @@
 
 ## Federal Contract Spending Analysis
 
-**Status: planning — development starts from an empty repository.**
+**Status: setup — repository scaffold and collector in place; first real data pull pending.**
 
 GovSpend AI is a planned data-mining project for CS 513. The goal is to analyze federal contract awards, discover spending patterns, and rank unusual awards for human review.
 
@@ -31,7 +31,32 @@ An award-level amount must be interpreted according to the source definition. A 
 5. Review of ranked examples and sensitivity to modeling choices.
 6. A reproducible report describing findings and limitations.
 
-The initial proposed stack is Python, Pandas, NumPy, scikit-learn, Matplotlib, and Jupyter. Installation instructions will be added when the first working implementation is ready.
+The stack is Python, Pandas, NumPy, scikit-learn, Matplotlib, and Jupyter.
+
+## Getting started
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+pip install -e .
+
+python -m govspend.collect --max-records 200   # raw snapshot -> data/raw/<run_id>/
+python -m govspend.flatten                     # flat table  -> data/processed/awards_<run_id>.csv
+pytest                                         # offline checks: pagination, parsing, dedup
+jupyter notebook notebooks/00_first_look.ipynb
+```
+
+Raw snapshots and processed tables stay local (gitignored). Each snapshot carries a `collection_notes.json` with the exact request, timestamps, and stop reason. Column definitions are in [docs/data_dictionary.md](docs/data_dictionary.md).
+
+| Path | Purpose |
+| --- | --- |
+| `src/govspend/collect.py` | Pages through `spending_by_award` and saves untouched responses |
+| `src/govspend/flatten.py` | Flattens a snapshot, parses amounts/dates, dedups on `generated_internal_id` |
+| `notebooks/` | Exploration (`00_first_look.ipynb` first) |
+| `tests/` | Network-free checks for collection and flattening |
+| `docs/` | Data dictionary and study notes |
+| `reports/` | Figures and the final report |
 
 ## Development roadmap
 

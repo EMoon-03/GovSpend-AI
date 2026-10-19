@@ -38,9 +38,9 @@ Create a GitHub repository named `govspend-ai` and add `README.md` and this `PLA
 
 Start with Python, Pandas, NumPy, Matplotlib, Jupyter, requests, and scikit-learn. Create a project-specific virtual environment. On Windows it uses `.venv/Scripts/`; on Linux/macOS it uses `.venv/bin/`.
 
-- [ ] Create the repository and folders.
+- [x] Create the repository and folders.
 - [ ] Create the virtual environment and confirm a notebook runs.
-- [ ] Make the first commit with the project documents and `.gitignore`.
+- [x] Make the first commit with the project documents and `.gitignore`.
 
 **Done when:** the repository is organized and a notebook can import Pandas. A model is not required for this milestone.
 
