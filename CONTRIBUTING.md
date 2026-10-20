@@ -45,4 +45,10 @@ Model outputs and the report describe **statistical differences**, never wrongdo
 
 ## Tracking work
 
-Each unchecked item in `PLAN.md` becomes a GitHub issue labeled with its track (`data`, `modeling`, `assistant`). Assign yourself before starting, and link the issue in your PR.
+Open work is tracked as [GitHub issues](https://github.com/EMoon-03/GovSpend-AI/issues), one per chunk of `PLAN.md`, each with a checklist. Labels:
+
+- `data`, `modeling`, `assistant`, `shared` — the track that owns it
+- `blocked` — waiting on the issue named in its "Depends on" line; remove the label when that closes
+- `good first issue` — a quick way in for a new contributor
+
+Assign yourself before starting, tick checklist items as you go, and write `Closes #<n>` in the PR that finishes an issue. When a PLAN item is done, check it in `PLAN.md` in the same PR.
