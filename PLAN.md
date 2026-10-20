@@ -1,10 +1,24 @@
 # GovSpend AI — Plan from Scratch
 
-**Starting point:** an empty repository. All tasks below are upcoming.
+**Starting point:** scaffold, collector, flattener, and first-look notebook are in place. The first real data pull is next.
 
-**Project goal:** build a CS 513 data-mining study that identifies and explains unusual federal contract awards relative to suitable peers.
+**Project goal:** build a CS 513 data-mining study that identifies and explains unusual federal contract awards relative to suitable peers, plus an analyst assistant that explains flagged awards with cited evidence.
 
 **First finish line:** a reproducible collection and analysis workflow, exploratory charts, a simple comparison baseline, an Isolation Forest ranking, and a report grounded in reviewed examples.
+
+**Second finish line:** an analyst assistant (section 9) that, for a flagged award, retrieves comparable awards and reference passages and writes a short explanation in which every claim cites a source.
+
+## Team tracks
+
+Up to three contributors. Each track owns its code and hands one artifact to the next. The processed awards table, as defined in [docs/data_dictionary.md](docs/data_dictionary.md), is the contract between tracks: change its columns only through a reviewed pull request.
+
+| Track | Owns | Hands off | Plan sections |
+| --- | --- | --- | --- |
+| Data | `collect.py`, `flatten.py`, cohort design, data dictionary, exploration charts | Processed awards table | 1–5 |
+| Modeling | Peer baseline, Isolation Forest, classification task, sensitivity analysis | Ranked awards with scores and peer context | 6–7 |
+| Assistant | `src/govspend/rag/`, reference corpus, retrieval evaluation, explanations | Cited explanations for flagged awards | 9 |
+
+Section 8 (final deliverable) is shared. The class study (sections 1–8) must be gradeable even if the assistant slips, so the assistant reads the processed table and never blocks it. Workflow rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 1. Define the study
 
@@ -110,6 +124,20 @@ Construct simple comparisons such as award amount relative to a peer-group media
 - [ ] Record peer-group size alongside each comparison.
 - [ ] Keep descriptive notes factual, such as “3.2 times the median of 42 awards in this group.”
 
+### Classification task (rubric check)
+
+The CS 513 spec may require a classification or recommendation system; Isolation Forest is unsupervised. Confirm with the instructor. If needed, add a supervised task using a label USAspending already records:
+
+- **Extent competed** (full and open vs. not competed) — preferred; it connects directly to “unusual awards.”
+- **Contract pricing type** (fixed-price vs. cost-reimbursement).
+- **Small-business set-aside** (yes/no).
+
+`spending_by_award` does not return these fields. Two collection options: (a) run one filtered query per category using `extent_competed_type_codes` (or the pricing/set-aside filters) and tag results with the filter value; (b) enrich each award from `/api/v2/awards/<generated_internal_id>/`. Option (a) is far fewer requests. Verify the filter codes against the API before relying on them.
+
+- [ ] Confirm the rubric requirement.
+- [ ] Choose a label and collection option; document the code values.
+- [ ] Train a simple classifier (logistic regression, then a tree model) with a held-out split and report per-class metrics.
+
 ### Isolation Forest
 
 Start with a small, documented feature set, such as transformed award amount and peer-size differences. Treat recipient frequency as frequency in the collected cohort. Add features only when their meaning can be explained.
@@ -149,18 +177,51 @@ If the project later scores new awards, separate training and evaluation data an
 
 **Done when:** someone following the instructions can reproduce the analysis using the same documented input snapshot.
 
+## 9. Analyst assistant (RAG)
+
+For one flagged award, retrieve (1) comparable awards from the cohort and (2) reference passages from the Federal Acquisition Regulation and the USAspending data dictionary, then generate a short explanation in which every claim cites an award ID or passage ID. Design details: [docs/rag.md](docs/rag.md).
+
+### 9.1 Reference corpus
+- [x] Fetcher and section-aware parser for FAR parts (default: 6 competition, 13 simplified acquisition, 16 contract types, 19 small business).
+- [x] Parser for the USAspending data dictionary endpoint (one passage per element).
+- [ ] Run the fetch, spot-check 10 passages against the live pages, and record the retrieval date.
+
+### 9.2 Award documents
+- [x] Turn each processed award into a retrievable document: description plus agency, NAICS, PSC, type, and amount, with metadata for filtering.
+- [ ] Check how many awards have empty or boilerplate descriptions; decide how to handle them.
+
+### 9.3 Embeddings and retrieval
+- [x] Embedder interface: `sentence-transformers` (default `all-MiniLM-L6-v2`) and an offline hashing embedder for tests.
+- [x] Vector index saved to disk with the embedder name recorded, so a mismatched query embedder fails loudly.
+- [x] Peer retrieval restricted to the same NAICS (then agency) with a documented fallback; reference retrieval by query.
+- [ ] Build both indexes on the first real cohort.
+
+### 9.4 Grounded generation
+- [x] Prompt that supplies only retrieved context and requires `[A:<award id>]` / `[R:<passage id>]` citations.
+- [x] Guards: reject citations not in the retrieved context, flag uncited sentences, flag accusatory wording (fraud, waste, misconduct, and similar).
+- [x] Provider layer (Anthropic, OpenAI, Ollama) and a `--dry-run` mode that prints the prompt without calling a model.
+- [ ] Generate explanations for 10 top-ranked awards once the Modeling track delivers rankings.
+
+### 9.5 Evaluation
+- [x] Retrieval evaluation script (recall@k, MRR) over a hand-labeled query file.
+- [ ] Hand-label 30–50 retrieval queries (format in `docs/rag.md`).
+- [ ] Score 20 explanations: citation validity (automatic), faithfulness and usefulness (manual rubric).
+- [ ] Compare against a no-retrieval baseline prompt to show what retrieval adds.
+
+**Done when:** an explanation for any flagged award can be regenerated from a saved snapshot, every claim in it traces to a retrieved source, and the evaluation numbers are in the report.
+
 ## Suggested six-week schedule
 
 This is a proposed pace of roughly 4–6 focused hours per week; adjust it to the class deadline and rubric.
 
-| Week | Focus | Deliverable |
-| --- | --- | --- |
-| 1 | Scope, repository, first collection | Proposal, data dictionary draft, 100–300 records |
-| 2 | Collection method and cleaning | Documented study dataset and quality summary |
-| 3 | Exploration | Notebook with 4–5 charts and observations |
-| 4 | Statistical baseline and Isolation Forest | Reproducible ranked outputs |
-| 5 | Review and sensitivity analysis | Comparison table and reviewed examples |
-| 6 | Report and reproducibility | Final report, updated README, and demo |
+| Week | Data / Modeling focus | Assistant focus | Deliverable |
+| --- | --- | --- | --- |
+| 1 | Scope, repository, first collection | Corpus fetch and parsing | Proposal, data dictionary draft, 100–300 records, reference corpus |
+| 2 | Collection method and cleaning | Award documents, indexes | Documented study dataset; both indexes built |
+| 3 | Exploration | Label retrieval queries | 4–5 charts; retrieval recall@k |
+| 4 | Statistical baseline, Isolation Forest, classifier | Explanations for top-ranked awards | Ranked outputs; first explanations |
+| 5 | Review and sensitivity analysis | Explanation scoring vs. no-retrieval baseline | Comparison tables, reviewed examples |
+| 6 | Report and reproducibility | Demo integration | Final report, updated README, demo |
 
 ## Portfolio upgrades after the class study
 
@@ -172,7 +233,7 @@ This is a proposed pace of roughly 4–6 focused hours per week; adjust it to th
 | 4 | Docker and continuous integration | The project runs from documented commands and key checks run automatically |
 | 5 | Scheduled refresh and experiment tracking | Data and model versions can be traced to a specific run |
 
-Add transaction history before attempting modification counts or historical recipient trends. Consider distributed processing only after measuring a workload that justifies it. Any later document retrieval or language-model feature should use source-grounded evidence and have its own evaluation.
+Add transaction history before attempting modification counts or historical recipient trends. Consider distributed processing only after measuring a workload that justifies it. The analyst assistant (section 9) can later move its index into PostgreSQL with `pgvector` and sit behind the FastAPI layer; keep its evaluation suite running as it changes.
 
 ## First session
 
